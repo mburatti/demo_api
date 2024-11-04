@@ -1,0 +1,96 @@
+plugins {
+    id 'java'
+    id 'org.springframework.boot' version '3.3.5'
+    id 'io.spring.dependency-management' version '1.1.6'
+    id 'org.openapi.generator' version '6.0.1'
+}
+
+java {
+    sourceCompatibility = JavaVersion.VERSION_21
+    targetCompatibility = JavaVersion.VERSION_21
+}
+
+repositories {
+    mavenCentral()
+}
+
+def basePackage = "me.buratti.demo_api"
+def generatedSrcDir = layout.buildDirectory.dir("generated/src/main/java").get().asFile.getAbsolutePath()
+def generatedTestDir = layout.buildDirectory.dir("generated/src/test/java").get().asFile.getAbsolutePath()
+
+openApiGenerate {
+    generatorName = "spring"
+    inputSpec = "$rootDir/src/main/resources/swagger.yaml"
+    outputDir = layout.buildDirectory.dir("generated").get().asFile.getAbsolutePath()
+    apiPackage = "${basePackage}.api"
+    modelPackage = "${basePackage}.model"
+    configOptions = [
+        dateLibrary: "java8",
+        useJakartaEe: "true",
+        useBeanValidation: "true",
+        useSpringDataAnnotations: "true",
+        useSpringBoot3: "true",
+        apiTests: "false",
+        modelTests: "false"
+    ]
+    ignoreFileOverride = "$rootDir/.openapi-generator-ignore"
+}
+
+sourceSets {
+    main {
+        java {
+            srcDir generatedSrcDir
+        }
+    }
+    test {
+        java {
+            srcDir generatedTestDir
+        }
+    }
+}
+
+dependencies {
+    annotationProcessor 'org.projectlombok:lombok'
+
+    compileOnly 'org.projectlombok:lombok'
+
+    implementation 'com.h2database:h2'
+    implementation 'io.springfox:springfox-boot-starter:3.0.0'
+    implementation 'org.hibernate:hibernate-core:6.0.0.Final'
+    implementation 'org.openapitools:jackson-databind-nullable:0.2.1'
+    implementation 'org.springframework.boot:spring-boot-starter-data-jpa'
+    implementation 'org.springframework.boot:spring-boot-starter-security'
+    implementation 'org.springframework.boot:spring-boot-starter-validation'
+    implementation 'org.springframework.boot:spring-boot-starter-web'
+
+    runtimeOnly 'com.h2database:h2'
+
+    testImplementation 'org.springframework.boot:spring-boot-starter-test'
+    testImplementation 'org.junit.jupiter:junit-jupiter-api:5.9.0'
+    testRuntimeOnly 'org.junit.jupiter:junit-jupiter-engine:5.9.0'
+}
+
+tasks.named('test') {
+    useJUnitPlatform()
+}
+
+tasks.withType(JavaCompile).configureEach {
+    options.compilerArgs += "-s"
+    options.compilerArgs += generatedSrcDir
+    options.fork = true
+}
+
+// Ensure clean runs before build
+tasks.named('build') {
+    dependsOn tasks.clean
+}
+
+// Ensure openApiGenerate runs before compileJava
+tasks.named('compileJava') {
+    dependsOn tasks.named('openApiGenerate')
+}
+
+// Specify the main class
+bootJar {
+    mainClass = "${basePackage}.OpenApiApplication"
+}
